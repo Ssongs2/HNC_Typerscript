@@ -5,15 +5,28 @@ type Store = { // ; 구문
   feeds: NewsFeed[];
 }
 
-type NewsFeed = {
+type News = {
   id: number;
-  comments_counter: number;
+  time_ago: string;
+  title: string;
   url: string;
   user: string;
-  time_ago: string;
+  content: string;
+}
+
+type NewsFeed = News & {
+  comments_count: number;
   points: number;
-  title: string;
   read?: boolean; // ? optional property
+}
+
+type NewsDetail = News & {
+  comments: [];
+}
+
+type NewsComments = News & {
+  comments: [];
+  level: number;
 
 }
 
@@ -30,14 +43,15 @@ const store: Store = { // share contents // ,구분
   feeds: [],
 }
 
-function getData(url) {
+function getData<AjaxResponse>(url: string): AjaxResponse { // 호출해주는 쪽에서 유형을 명시해주면, 그 유형을 고대로 받아서 반환값으로 주겠다
   ajax.open('GET', url, false);
   ajax.send();
+
 
   return JSON.parse(ajax.response);
 }
 
-function makeFeeds(feeds) {
+function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
   for (let i = 0; i < feeds.length; i++) {
     feeds[i].read = false;
   }
@@ -45,7 +59,8 @@ function makeFeeds(feeds) {
   return feeds;
 }
 
-function updateView(html) {
+// type을 방어한다 -> typeguard
+function updateView(html: string): void {
   if (container != null) {
     container.innerHTML = html;
   } else {
@@ -53,12 +68,12 @@ function updateView(html) {
   }
 }
 
-function newsFeed() {
+function newsFeed(): void {
   let newsFeed: NewsFeed[] = store.feeds;
   let newsList = [];
 
   if (newsFeed.length === 0) {
-    newsFeed = store.feeds = makeFeeds(getData(NEWS_URL));
+    newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
   }
 
   let template = `
@@ -112,8 +127,8 @@ function newsFeed() {
 
   console.log(store.totalPage)
   template = template.replace('{{__news_feed__}}', newsList.join(''));
-  template = template.replace('{{__prev_page__}}', store.currentPage > 1 ? store.currentPage - 1 : 1);
-  template = template.replace('{{__next_page__}}', store.currentPage + 1 <= store.totalPage ? store.currentPage + 1 : store.currentPage);
+  template = template.replace('{{__prev_page__}}', String(store.currentPage > 1 ? store.currentPage - 1 : 1));
+  template = template.replace('{{__next_page__}}', String(store.currentPage + 1 <= store.totalPage ? store.currentPage + 1 : store.currentPage));
 
   // innerHtml 하나의 문자열만 들어가야 함.
   // join() 배열의 요소를 하나의 문자열로 함쳐줌 
@@ -122,11 +137,11 @@ function newsFeed() {
   updateView(template);
 }
 
-function newsDetail() {
+function newsDetail(): void {
 
   const id = location.hash.substring(7);
 
-  const newsContent = getData(CONTENT_URL.replace('@id', id));
+  const newsContent = getData<NewsDetail>(CONTENT_URL.replace('@id', id));
 
   let template = `
 
@@ -165,32 +180,33 @@ function newsDetail() {
     }
   }
 
-  function makeComment(comments, called = 0) {
-    const commentString = [];
-
-    for (let i = 0; i < comments.length; i++) {
-      commentString.push(`
-            <div style="padding-left: ${called * 40}px;" class="mt-4">
-          <div class="text-gray-400">
-            <i class="fa fa-sort-up mr-2"></i>
-            <strong>${comments[i].user}</strong> ${comments[i].time_ago}
-          </div>
-          <p class="text-gray-700">${comments[i].content}</p>
-        </div>    
-            `)
-
-      if (comments[i].comments.length > 0) {
-        commentString.push(makeComment(comments[i].comments, called + 1));
-      }
-    }
-
-    return commentString.join('');
-  }
-
   updateView(template.replace('{{__comments__}}', makeComment(newsContent.comments)));
 }
 
-function router() {
+function makeComment(comments: NewsComments[]): string {
+  const commentString = [];
+
+  for (let i = 0; i < comments.length; i++) {
+    const comment: NewsComments = comments[i];
+    commentString.push(`
+          <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+        <div class="text-gray-400">
+          <i class="fa fa-sort-up mr-2"></i>
+          <strong>${comment.user}</strong> ${comment.time_ago}
+        </div>
+        <p class="text-gray-700">${comment.content}</p>
+      </div>    
+          `)
+
+    if (comment.comments.length > 0) {
+      commentString.push(makeComment(comment.comments));
+    }
+  }
+
+  return commentString.join('');
+}
+
+function router(): void {
   const routePath = location.hash
 
   if (routePath === '') {

@@ -121,14 +121,15 @@ parcelRequire = (function (modules, cache, entry, globalName) {
 "use strict";
 
 var container = document.getElementById('root');
-var content = document.createElement('div');
+// const content = document.createElement('div');
 var ajax = new XMLHttpRequest();
 var NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 var CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
+// Type alias, Interface
 var store = {
   currentPage: 1,
-  feeds: [],
-  totalPage: 0
+  totalPage: 0,
+  feeds: []
 };
 function getData(url) {
   ajax.open('GET', url, false);
@@ -141,6 +142,14 @@ function makeFeeds(feeds) {
   }
   store.totalPage = Number(feeds.length / 10);
   return feeds;
+}
+// type을 방어한다 -> typeguard
+function updateView(html) {
+  if (container != null) {
+    container.innerHTML = html;
+  } else {
+    console.error();
+  }
 }
 function newsFeed() {
   var newsFeed = store.feeds;
@@ -155,12 +164,12 @@ function newsFeed() {
   }
   console.log(store.totalPage);
   template = template.replace('{{__news_feed__}}', newsList.join(''));
-  template = template.replace('{{__prev_page__}}', store.currentPage > 1 ? store.currentPage - 1 : 1);
-  template = template.replace('{{__next_page__}}', store.currentPage + 1 <= store.totalPage ? store.currentPage + 1 : store.currentPage);
+  template = template.replace('{{__prev_page__}}', String(store.currentPage > 1 ? store.currentPage - 1 : 1));
+  template = template.replace('{{__next_page__}}', String(store.currentPage + 1 <= store.totalPage ? store.currentPage + 1 : store.currentPage));
   // innerHtml 하나의 문자열만 들어가야 함.
   // join() 배열의 요소를 하나의 문자열로 함쳐줌 
   // () 구분자
-  container.innerHTML = template;
+  updateView(template);
 }
 function newsDetail() {
   var id = location.hash.substring(7);
@@ -172,28 +181,19 @@ function newsDetail() {
       break;
     }
   }
-  function makeComment(comments, called) {
-    if (called === void 0) {
-      called = 0;
-    }
-    var commentString = [];
-    for (var i = 0; i < comments.length; i++) {
-      commentString.push("\n            <div style=\"padding-left: ".concat(called * 40, "px;\" class=\"mt-4\">\n          <div class=\"text-gray-400\">\n            <i class=\"fa fa-sort-up mr-2\"></i>\n            <strong>").concat(comments[i].user, "</strong> ").concat(comments[i].time_ago, "\n          </div>\n          <p class=\"text-gray-700\">").concat(comments[i].content, "</p>\n        </div>    \n            "));
-      if (comments[i].comments.length > 0) {
-        commentString.push(makeComment(comments[i].comments, called + 1));
-      }
-    }
-    return commentString.join('');
-  }
-  container.innerHTML = template.replace('{{__comments__}}', makeComment(newsContent.comments));
-  // `
-  // <h1>${newsContent.title}</h1>
-  // <div>
-  // <a href="#">목록으로</a>
-  // </div>
-  // `;
+  updateView(template.replace('{{__comments__}}', makeComment(newsContent.comments)));
 }
-
+function makeComment(comments) {
+  var commentString = [];
+  for (var i = 0; i < comments.length; i++) {
+    var comment = comments[i];
+    commentString.push("\n          <div style=\"padding-left: ".concat(comment.level * 40, "px;\" class=\"mt-4\">\n        <div class=\"text-gray-400\">\n          <i class=\"fa fa-sort-up mr-2\"></i>\n          <strong>").concat(comment.user, "</strong> ").concat(comment.time_ago, "\n        </div>\n        <p class=\"text-gray-700\">").concat(comment.content, "</p>\n      </div>    \n          "));
+    if (comment.comments.length > 0) {
+      commentString.push(makeComment(comment.comments));
+    }
+  }
+  return commentString.join('');
+}
 function router() {
   var routePath = location.hash;
   if (routePath === '') {
@@ -233,7 +233,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "65194" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55540" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];
