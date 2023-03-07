@@ -1,6 +1,6 @@
 import View from '../core/view';
 import { NewsDetailApi } from "../core/api";
-import { NewsDetail, NewsComments } from "../types";
+import { NewsDetail, NewsComments, NewsStore } from "../types";
 import { CONTENT_URL } from "../config";
 
 const template = `
@@ -33,37 +33,42 @@ const template = `
 `
 
 export default class NewsDetailView extends View {
-    constructor(containerId: string) {
-        super(containerId, template);
-    }
-    render() {
-        const id = location.hash.substring(7);
-        const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
+  private store: NewsStore;
 
-        const newsContent: NewsDetail = api.getData();
+  constructor(containerId: string, store: NewsStore) {
+    super(containerId, template);
 
+    this.store = store;
+  }
 
-        for (let i = 0; i < window.store.feeds.length; i++) {
-            if (window.store.feeds[i].id === Number(id)) {
-                window.store.feeds[i].read = true;
-                break;
-            }
-        }
+  render() {
+    const id = location.hash.substring(7);
+    const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
 
-        this.setTemplateData('comments', this.makeComment(newsContent.comments))
-        this.setTemplateData('currentPage', String(window.store.currentPage))
-        this.setTemplateData('title', newsContent.title);
-        this.setTemplateData('content', newsContent.content);
+    api.getDatawithXHR((data: NewsDetail) => {
+      const { title, content, comments } = data;
 
-        this.updateView();
-    }
+      this.store.makeRead(Number(id));
+
+      this.setTemplateData('comments', this.makeComment(comments))
+      this.setTemplateData('currentPage', String(this.store.currentPage))
+      this.setTemplateData('title', title);
+      this.setTemplateData('content', content);
 
 
-    private makeComment(comments: NewsComments[]): string {
-        for (let i = 0; i < comments.length; i++) {
-            const comment: NewsComments = comments[i];
+      this.updateView();
+    })
+    // const newsContent: NewsDetail = api.getData();
 
-            this.addHtml(`
+
+  }
+
+
+  private makeComment(comments: NewsComments[]): string {
+    for (let i = 0; i < comments.length; i++) {
+      const comment: NewsComments = comments[i];
+
+      this.addHtml(`
             <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
           <div class="text-gray-400">
             <i class="fa fa-sort-up mr-2"></i>
@@ -73,11 +78,11 @@ export default class NewsDetailView extends View {
         </div>    
             `)
 
-            if (comment.comments.length > 0) {
-                this.addHtml(this.makeComment(comment.comments));
-            }
-        }
-
-        return this.getHtml();
+      if (comment.comments.length > 0) {
+        this.addHtml(this.makeComment(comment.comments));
+      }
     }
+
+    return this.getHtml();
+  }
 }

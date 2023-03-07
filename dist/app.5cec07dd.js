@@ -117,7 +117,96 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"src/core/router.ts":[function(require,module,exports) {
+})({"src/store.ts":[function(require,module,exports) {
+"use strict";
+
+var __assign = this && this.__assign || function () {
+  __assign = Object.assign || function (t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+      s = arguments[i];
+      for (var p in s) {
+        if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+      }
+    }
+    return t;
+  };
+  return __assign.apply(this, arguments);
+};
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+// NewsStore를 구현한 Class임을 명시
+var Store = /** @class */function () {
+  function Store() {
+    this.feeds = [];
+    this._currentPage = 1;
+    this.totalPage = 1;
+  }
+  Object.defineProperty(Store.prototype, "currentPage", {
+    get: function get() {
+      return this._currentPage; // 내부에서 쓰는 경우 함수와 변수가 이름이 겹치면, _를 추가해줌.
+    },
+
+    set: function set(page) {
+      this._currentPage = page;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(Store.prototype, "nextPage", {
+    get: function get() {
+      return this.currentPage + 1 <= this.totalPage ? this.currentPage + 1 : this.currentPage;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(Store.prototype, "prevPage", {
+    get: function get() {
+      return this._currentPage > 1 ? this._currentPage - 1 : 1;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(Store.prototype, "numberOfFeed", {
+    get: function get() {
+      return this.feeds.length;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(Store.prototype, "hasFeeds", {
+    get: function get() {
+      return this.feeds.length > 0;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  Store.prototype.getAllFeeds = function () {
+    return this.feeds;
+  };
+  Store.prototype.getFeed = function (position) {
+    return this.feeds[position];
+  };
+  Store.prototype.setFeeds = function (feeds) {
+    this.feeds = feeds.map(function (feed) {
+      return __assign(__assign({}, feed), {
+        read: false
+      });
+    });
+    this.totalPage = Number(this.feeds.length / 10);
+  };
+  Store.prototype.makeRead = function (id) {
+    var feed = this.feeds.find(function (feed) {
+      return feed.id === id;
+    });
+    if (feed) {
+      feed.read = true;
+    }
+  };
+  return Store;
+}();
+exports.default = Store;
+},{}],"src/core/router.ts":[function(require,module,exports) {
 "use strict";
 
 var __values = this && this.__values || function (o) {
@@ -259,35 +348,49 @@ Object.defineProperty(exports, "__esModule", {
 exports.NewsDetailApi = exports.NewsFeedApi = exports.Api = void 0;
 var Api = /** @class */function () {
   function Api(url) {
-    this.ajax = new XMLHttpRequest();
+    this.xhr = new XMLHttpRequest();
     this.url = url;
   }
-  Api.prototype.getRequest = function () {
-    this.ajax.open('GET', this.url, false);
-    this.ajax.send();
-    return JSON.parse(this.ajax.response);
+  Api.prototype.getRequestWithXHR = function (cb) {
+    var _this = this;
+    this.xhr.open('GET', this.url);
+    this.xhr.addEventListener('load', function () {
+      cb(JSON.parse(_this.xhr.response));
+    });
+    this.xhr.send();
+  };
+  // xhr의 다음 버전 보완재로 나오는 차세대 API
+  Api.prototype.getRequestWithPromise = function (cb) {
+    fetch(this.url).then(function (response) {
+      return response.json();
+    }).then(cb).catch(function () {
+      console.error('데이터를 불러오지 못했습니다.');
+    });
   };
   return Api;
 }();
 exports.Api = Api;
 var NewsFeedApi = /** @class */function (_super) {
   __extends(NewsFeedApi, _super);
-  function NewsFeedApi() {
-    return _super !== null && _super.apply(this, arguments) || this;
+  function NewsFeedApi(url) {
+    return _super.call(this, url) || this;
   }
-  NewsFeedApi.prototype.getData = function () {
-    return this.getRequest();
+  NewsFeedApi.prototype.getDatawithXHR = function (cb) {
+    return this.getRequestWithXHR(cb);
+  };
+  NewsFeedApi.prototype.getDatawithPromise = function (cb) {
+    return this.getRequestWithPromise(cb);
   };
   return NewsFeedApi;
 }(Api);
 exports.NewsFeedApi = NewsFeedApi;
 var NewsDetailApi = /** @class */function (_super) {
   __extends(NewsDetailApi, _super);
-  function NewsDetailApi() {
-    return _super !== null && _super.apply(this, arguments) || this;
+  function NewsDetailApi(url) {
+    return _super.call(this, url) || this;
   }
-  NewsDetailApi.prototype.getData = function () {
-    return this.getRequest();
+  NewsDetailApi.prototype.getDatawithXHR = function (cb) {
+    return this.getRequestWithXHR(cb);
   };
   return NewsDetailApi;
 }(Api);
@@ -340,25 +443,29 @@ var config_1 = require("../config");
 var template = "\n<div class=\"bg-gray-600 min-h-screen pb-8\">\n  <div class=\"bg-white text-xl\">\n    <div class=\"mx-auto px-4\">\n      <div class=\"flex justify-between items-center py-6\">\n        <div class=\"flex justify-start\">\n          <h1 class=\"font-extrabold\">Hacker News</h1>\n        </div>\n        <div class=\"items-center justify-end\">\n          <a href=\"#/page/{{__currentPage__}}\" class=\"text-gray-500\">\n            <i class=\"fa fa-times\"></i>\n          </a>\n        </div>\n      </div>\n    </div>\n  </div>\n\n  <div class=\"h-full border rounded-xl bg-white m-6 p-4 \">\n    <h2>{{__title__}}</h2>\n    <div class=\"text-gray-400 h-20\">\n      {{__content__}}\n    </div>\n\n    {{__comments__}}\n\n  </div>\n</div>\n";
 var NewsDetailView = /** @class */function (_super) {
   __extends(NewsDetailView, _super);
-  function NewsDetailView(containerId) {
-    return _super.call(this, containerId, template) || this;
+  function NewsDetailView(containerId, store) {
+    var _this = _super.call(this, containerId, template) || this;
+    _this.store = store;
+    return _this;
   }
   NewsDetailView.prototype.render = function () {
+    var _this = this;
     var id = location.hash.substring(7);
     var api = new api_1.NewsDetailApi(config_1.CONTENT_URL.replace('@id', id));
-    var newsContent = api.getData();
-    for (var i = 0; i < window.store.feeds.length; i++) {
-      if (window.store.feeds[i].id === Number(id)) {
-        window.store.feeds[i].read = true;
-        break;
-      }
-    }
-    this.setTemplateData('comments', this.makeComment(newsContent.comments));
-    this.setTemplateData('currentPage', String(window.store.currentPage));
-    this.setTemplateData('title', newsContent.title);
-    this.setTemplateData('content', newsContent.content);
-    this.updateView();
+    api.getDatawithXHR(function (data) {
+      var title = data.title,
+        content = data.content,
+        comments = data.comments;
+      _this.store.makeRead(Number(id));
+      _this.setTemplateData('comments', _this.makeComment(comments));
+      _this.setTemplateData('currentPage', String(_this.store.currentPage));
+      _this.setTemplateData('title', title);
+      _this.setTemplateData('content', content);
+      _this.updateView();
+    });
+    // const newsContent: NewsDetail = api.getData();
   };
+
   NewsDetailView.prototype.makeComment = function (comments) {
     for (var i = 0; i < comments.length; i++) {
       var comment = comments[i];
@@ -411,43 +518,43 @@ var config_1 = require("../config");
 var template = "\n        <div class=\"bg-gray-600 min-h-screen\">\n        <div class=\"bg-white text-xl\">\n          <div class=\"mx-auto px-4\">\n            <div class=\"flex justify-between items-center py-6\">\n              <div class=\"flex justify-start\">\n                <h1 class=\"font-extrabold\">Hacker News</h1>\n              </div>\n              <div class=\"items-center justify-end\">\n                <a href=\"#/page/{{__prevpage__}}\" class=\"text-gray-500\">\n                  Previous\n                </a>\n                <a href=\"#/page/{{__nextpage__}}\" class=\"text-gray-500 ml-4\">\n                  Next\n                </a>\n              </div>\n            </div> \n          </div>\n        </div>\n        <div class=\"p-4 text-2xl text-gray-700\">\n          {{__newsfeed__}}        \n        </div>\n      </div>\n        ";
 var NewsFeedView = /** @class */function (_super) {
   __extends(NewsFeedView, _super);
-  function NewsFeedView(containerId) {
+  function NewsFeedView(containerId, store) {
     // 상위클래스로부터 extends 받으면
     // 반드시 상위클래스의 생성자를 명시적으로 호출해줘야함. 
     var _this = _super.call(this, containerId, template) || this;
+    _this.renderView = function () {
+      for (var i = (_this.store.currentPage - 1) * 10; i < _this.store.currentPage * 10; i++) {
+        var _a = _this.store.getFeed(i),
+          id = _a.id,
+          title = _a.title,
+          comments_count = _a.comments_count,
+          user = _a.user,
+          points = _a.points,
+          time_ago = _a.time_ago,
+          read = _a.read;
+        // innerHTML이 HTML로 변환시켜준다는 뜻.
+        _this.addHtml("\n                <div class=\"p-6 ".concat(read ? 'bg-red-500' : 'bg-white', " mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100\">\n                <div class=\"flex\">\n                  <div class=\"flex-auto\">\n                    <a href=\"#/show/").concat(id, "\">").concat(title, "</a>  \n                  </div>\n                  <div class=\"text-center text-sm\">\n                    <div class=\"w-10 text-white bg-green-300 rounded-lg px-0 py-2\">").concat(comments_count, "</div>\n                  </div>\n                </div>\n                <div class=\"flex mt-3\">\n                  <div class=\"grid grid-cols-3 text-sm text-gray-500\">\n                    <div><i class=\"fas fa-user mr-1\"></i>").concat(user, "</div>\n                    <div><i class=\"fas fa-heart mr-1\"></i>").concat(points, "</div>\n                    <div><i class=\"far fa-clock mr-1\"></i>").concat(time_ago, "</div>\n                  </div>  \n                </div>\n              </div>    \n        "));
+      }
+      _this.setTemplateData('newsfeed', _this.getHtml());
+      _this.setTemplateData('prevpage', String(_this.store.prevPage));
+      _this.setTemplateData('nextpage', String(_this.store.nextPage));
+      _this.updateView();
+    };
+    _this.store = store;
     _this.api = new api_1.NewsFeedApi(config_1.NEWS_URL);
-    _this.feeds = window.store.feeds;
-    if (_this.feeds.length === 0) {
-      // newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
-      _this.feeds = window.store.feeds = _this.api.getData();
-      _this.makeFeeds();
-    }
     return _this;
   }
   NewsFeedView.prototype.render = function () {
-    window.store.currentPage = Number(location.hash.substr(7) || 1);
-    for (var i = (window.store.currentPage - 1) * 10; i < window.store.currentPage * 10; i++) {
-      var _a = this.feeds[i],
-        id = _a.id,
-        title = _a.title,
-        comments_count = _a.comments_count,
-        user = _a.user,
-        points = _a.points,
-        time_ago = _a.time_ago,
-        read = _a.read;
-      // innerHTML이 HTML로 변환시켜준다는 뜻.
-      this.addHtml("\n                <div class=\"p-6 ".concat(read ? 'bg-red-500' : 'bg-white', " mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100\">\n                <div class=\"flex\">\n                  <div class=\"flex-auto\">\n                    <a href=\"#/show/").concat(id, "\">").concat(title, "</a>  \n                  </div>\n                  <div class=\"text-center text-sm\">\n                    <div class=\"w-10 text-white bg-green-300 rounded-lg px-0 py-2\">").concat(comments_count, "</div>\n                  </div>\n                </div>\n                <div class=\"flex mt-3\">\n                  <div class=\"grid grid-cols-3 text-sm text-gray-500\">\n                    <div><i class=\"fas fa-user mr-1\"></i>").concat(user, "</div>\n                    <div><i class=\"fas fa-heart mr-1\"></i>").concat(points, "</div>\n                    <div><i class=\"far fa-clock mr-1\"></i>").concat(time_ago, "</div>\n                  </div>  \n                </div>\n              </div>    \n        "));
+    var _this = this;
+    this.store.currentPage = Number(location.hash.substr(7) || 1);
+    if (!this.store.hasFeeds) {
+      // newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
+      this.api.getDatawithPromise(function (feeds) {
+        _this.store.setFeeds(feeds);
+        _this.renderView();
+      });
     }
-    this.setTemplateData('newsfeed', this.getHtml());
-    this.setTemplateData('prevpage', String(window.store.currentPage > 1 ? window.store.currentPage - 1 : 1));
-    this.setTemplateData('nextpage', String(window.store.currentPage + 1 <= window.store.totalPage ? window.store.currentPage + 1 : window.store.currentPage));
-    this.updateView();
-  };
-  NewsFeedView.prototype.makeFeeds = function () {
-    for (var i = 0; i < this.feeds.length; i++) {
-      this.feeds[i].read = false;
-    }
-    window.store.totalPage = Number(this.feeds.length / 10);
+    this.renderView();
   };
   return NewsFeedView;
 }(view_1.default);
@@ -489,18 +596,26 @@ var __importDefault = this && this.__importDefault || function (mod) {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+var store_1 = __importDefault(require("./store"));
 var router_1 = __importDefault(require("./core/router"));
 var page_1 = require("./page");
 // Type alias, Interface
-var store = {
-  currentPage: 1,
-  totalPage: 0,
-  feeds: []
-};
-window.store = store;
+// const store: Store = { // share contents // ,구분
+//   currentPage: 1,
+//   totalPage: 0,
+//   feeds: [],
+// }
+// 쉬운 방법 - 전역 객체로 만드는 방법
+// declare global {
+//   interface Window {
+//     store: Store;
+//   }
+// }
+// window.store = store;
+var store = new store_1.default();
 var router = new router_1.default();
-var newsFeedView = new page_1.NewsFeedView('root');
-var newsDetailView = new page_1.NewsDetailView('root');
+var newsFeedView = new page_1.NewsFeedView('root', store);
+var newsDetailView = new page_1.NewsDetailView('root', store);
 router.setDefaultPage(newsFeedView);
 router.addRoutePath('/page/', newsFeedView);
 router.addRoutePath('/show/', newsDetailView);
@@ -521,7 +636,7 @@ router.route();
 // interface NewsDetailApi extends Api { };
 // applyApiMixins(NewsFeedApi, [Api]);
 // applyApiMixins(NewsDetailApi, [Api]);
-},{"./core/router":"src/core/router.ts","./page":"src/page/index.ts"}],"C:/Users/송은지/AppData/Roaming/npm/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./store":"src/store.ts","./core/router":"src/core/router.ts","./page":"src/page/index.ts"}],"C:/Users/송은지/AppData/Roaming/npm/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -546,7 +661,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "65394" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49803" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];

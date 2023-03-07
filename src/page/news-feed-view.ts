@@ -1,5 +1,5 @@
 import View from "../core/view";
-import { NewsFeed } from "../types";
+import { NewsFeed, NewsStore } from "../types";
 import { NewsFeedApi } from "../core/api";
 import { NEWS_URL } from "../config";
 
@@ -29,32 +29,43 @@ const template = `
       </div>
         `
 export default class NewsFeedView extends View {
-    private api: NewsFeedApi;
-    private feeds: NewsFeed[];
-    constructor(containerId: string) { // 생성자 - 인스턴스를 만들어놓고 계속 쓰기위함.
-        // 상위클래스로부터 extends 받으면
-        // 반드시 상위클래스의 생성자를 명시적으로 호출해줘야함. 
+  private api: NewsFeedApi;
+  private store: NewsStore;
 
-        super(containerId, template);
+  constructor(containerId: string, store: NewsStore) { // 생성자 - 인스턴스를 만들어놓고 계속 쓰기위함.
+    // 상위클래스로부터 extends 받으면
+    // 반드시 상위클래스의 생성자를 명시적으로 호출해줘야함. 
 
-        this.api = new NewsFeedApi(NEWS_URL);
-        this.feeds = window.store.feeds;
+    super(containerId, template);
+
+    this.store = store;
+    this.api = new NewsFeedApi(NEWS_URL);
+
+  }
+
+  render(): void {
+    this.store.currentPage = Number(location.hash.substr(7) || 1)
 
 
-        if (this.feeds.length === 0) {
-            // newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
-            this.feeds = window.store.feeds = this.api.getData();
-            this.makeFeeds();
-        }
+    if (!this.store.hasFeeds) {
+      // newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
+      this.api.getDatawithPromise((feeds: NewsFeed[]) => {
+
+        this.store.setFeeds(feeds);
+        this.renderView();
+      })
     }
 
-    render(): void {
-        window.store.currentPage = Number(location.hash.substr(7) || 1)
-        for (let i = (window.store.currentPage - 1) * 10; i < window.store.currentPage * 10; i++) {
-            const { id, title, comments_count, user, points, time_ago, read } = this.feeds[i]
-            // innerHTML이 HTML로 변환시켜준다는 뜻.
-            this.addHtml(
-                `
+    this.renderView();
+
+  }
+
+  renderView = () => {
+    for (let i = (this.store.currentPage - 1) * 10; i < this.store.currentPage * 10; i++) {
+      const { id, title, comments_count, user, points, time_ago, read } = this.store.getFeed(i);
+      // innerHTML이 HTML로 변환시켜준다는 뜻.
+      this.addHtml(
+        `
                 <div class="p-6 ${read ? 'bg-red-500' : 'bg-white'} mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
                 <div class="flex">
                   <div class="flex-auto">
@@ -73,19 +84,18 @@ export default class NewsFeedView extends View {
                 </div>
               </div>    
         `);
-        }
-
-        this.setTemplateData('newsfeed', this.getHtml());
-        this.setTemplateData('prevpage', String(window.store.currentPage > 1 ? window.store.currentPage - 1 : 1));
-        this.setTemplateData('nextpage', String(window.store.currentPage + 1 <= window.store.totalPage ? window.store.currentPage + 1 : window.store.currentPage));
-
-        this.updateView();
     }
 
-    private makeFeeds(): void {
-        for (let i = 0; i < this.feeds.length; i++) {
-            this.feeds[i].read = false;
-        }
-        window.store.totalPage = Number(this.feeds.length / 10);
-    }
+    this.setTemplateData('newsfeed', this.getHtml());
+    this.setTemplateData('prevpage', String(this.store.prevPage));
+    this.setTemplateData('nextpage', String(this.store.nextPage));
+
+    this.updateView();
+  }
+  // private makeFeeds(): void {
+  //   for (let i = 0; i < this.feeds.length; i++) {
+  //     this.feeds[i].read = false;
+  //   }
+  //   this.store.totalPage = Number(this.feeds.length / 10);
+  // }
 }

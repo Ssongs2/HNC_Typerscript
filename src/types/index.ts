@@ -1,5 +1,19 @@
 import View from "../core/view";
 
+// 접근이 되게 해야 돼.
+export interface NewsStore {
+    getAllFeeds: () => NewsFeed[];
+    getFeed: (position: number) => NewsFeed;
+    setFeeds: (feeds: NewsFeed[]) => void;
+    makeRead: (id: number) => void
+    // 외부로 들어가는 형식으로 작성을 해야 됨.
+    hasFeeds: boolean;
+    currentPage: number;
+    numberOfFeed: number;
+    nextPage: number;
+    prevPage: number;
+}
+
 export interface Store {
     currentPage: number;
     totalPage: number;

@@ -7,7 +7,11 @@
         "noImplicitAny": true,
         "noImplicitThis": true,
         "sourceMap": true,
-        "downlevelIteration": true
+        "downlevelIteration": true,
+        "lib": [
+            "dom",
+            "es2018"
+        ],
     }
 }
 // https://www.typescriptlang.org/docs/handbook/tsconfig-json.html

@@ -1,26 +1,27 @@
-import { Store } from "./types";
+import Store from "./store";
 import Router from "./core/router";
 import { NewsFeedView, NewsDetailView } from "./page";
 
 // Type alias, Interface
-const store: Store = { // share contents // ,구분
-  currentPage: 1,
-  totalPage: 0,
-  feeds: [],
-}
+// const store: Store = { // share contents // ,구분
+//   currentPage: 1,
+//   totalPage: 0,
+//   feeds: [],
+// }
 
 // 쉬운 방법 - 전역 객체로 만드는 방법
-declare global {
-  interface Window {
-    store: Store;
-  }
-}
+// declare global {
+//   interface Window {
+//     store: Store;
+//   }
+// }
 
-window.store = store;
+// window.store = store;
+const store = new Store();
 
 const router: Router = new Router();
-const newsFeedView = new NewsFeedView('root');
-const newsDetailView = new NewsDetailView('root');
+const newsFeedView = new NewsFeedView('root', store);
+const newsDetailView = new NewsDetailView('root', store);
 
 
 router.setDefaultPage(newsFeedView);
