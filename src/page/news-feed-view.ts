@@ -43,24 +43,16 @@ export default class NewsFeedView extends View {
 
   }
 
-  render(): void {
+  render = async (): Promise<void> => {
     this.store.currentPage = Number(location.hash.substr(7) || 1)
 
 
     if (!this.store.hasFeeds) {
       // newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
-      this.api.getDatawithPromise((feeds: NewsFeed[]) => {
 
-        this.store.setFeeds(feeds);
-        this.renderView();
-      })
+      this.store.setFeeds(await this.api.getData());
     }
 
-    this.renderView();
-
-  }
-
-  renderView = () => {
     for (let i = (this.store.currentPage - 1) * 10; i < this.store.currentPage * 10; i++) {
       const { id, title, comments_count, user, points, time_ago, read } = this.store.getFeed(i);
       // innerHTML이 HTML로 변환시켜준다는 뜻.
@@ -91,6 +83,11 @@ export default class NewsFeedView extends View {
     this.setTemplateData('nextpage', String(this.store.nextPage));
 
     this.updateView();
+
+  }
+
+  renderView = () => {
+
   }
   // private makeFeeds(): void {
   //   for (let i = 0; i < this.feeds.length; i++) {

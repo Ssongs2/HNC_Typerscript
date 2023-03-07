@@ -9,22 +9,16 @@ export class Api {
         this.url = url;
     }
 
-    getRequestWithXHR<AjaxResponse>(cb: (data: AjaxResponse) => void): void {
-        this.xhr.open('GET', this.url);
-        this.xhr.addEventListener('load', () => {
-            cb(JSON.parse(this.xhr.response) as AjaxResponse);
-        });
-        this.xhr.send();
-    }
-
     // xhr의 다음 버전 보완재로 나오는 차세대 API
-    getRequestWithPromise<AjaxResponse>(cb: (data: AjaxResponse) => void): void {
-        fetch(this.url)
-            .then(response => response.json())
-            .then(cb)
-            .catch(() => {
-                console.error('데이터를 불러오지 못했습니다.')
-            })
+    async request<AjaxResponse>(): Promise<AjaxResponse> {
+        const response = await fetch(this.url); // 동기 처럼 보인다?
+        return await response.json() as AjaxResponse
+        // fetch(this.url)
+        //     .then(response => response.json())
+        //     .then(cb)
+        //     .catch(() => {
+        //         console.error('데이터를 불러오지 못했습니다.')
+        //     })
     }
 
 }
@@ -33,11 +27,8 @@ export class NewsFeedApi extends Api {
     constructor(url: string) {
         super(url);
     }
-    getDatawithXHR(cb: (data: NewsFeed[]) => void): void {
-        return this.getRequestWithXHR<NewsFeed[]>(cb);
-    }
-    getDatawithPromise(cb: (data: NewsFeed[]) => void): void {
-        return this.getRequestWithPromise<NewsFeed[]>(cb);
+    async getData(): Promise<NewsFeed[]> {
+        return this.request<NewsFeed[]>();
     }
 }
 
@@ -45,7 +36,7 @@ export class NewsDetailApi extends Api {
     constructor(url: string) {
         super(url);
     }
-    getDatawithXHR(cb: (data: NewsDetail) => void): void {
-        return this.getRequestWithXHR<NewsDetail>(cb);
+    async getData(): Promise<NewsDetail> {
+        return this.request<NewsDetail>();
     }
 }
