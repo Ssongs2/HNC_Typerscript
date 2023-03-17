@@ -3,7 +3,6 @@ import { NewsFeed, NewsStore } from "../types";
 import { NewsFeedApi } from "../core/api";
 import { NEWS_URL } from "../config";
 
-
 const template = `
         <div class="bg-gray-600 min-h-screen">
         <div class="bg-white text-xl">
@@ -28,6 +27,7 @@ const template = `
         </div>
       </div>
         `
+
 export default class NewsFeedView extends View {
   private api: NewsFeedApi;
   private store: NewsStore;
